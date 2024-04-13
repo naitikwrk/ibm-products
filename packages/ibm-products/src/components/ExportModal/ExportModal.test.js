@@ -97,6 +97,29 @@ describe(componentName, () => {
     expect(onRequestSubmit).not.toBeCalled();
   });
 
+  it('does not submit with empty spaces as text input', async () => {
+    const { click, type } = userEvent;
+    const { fn } = jest;
+    const onRequestSubmit = fn();
+    const props = {
+      ...defaultProps,
+      onRequestSubmit,
+    };
+
+    render(<ExportModal {...props} />);
+    const textInput = screen.getByRole('textbox');
+    const submitBtn = screen.getByRole('button', {
+      name: props.primaryButtonText,
+    });
+
+    await act(async () => {
+      await type(textInput, '    ');
+    });
+    expect(submitBtn).toBeDisabled();
+    await act(() => click(submitBtn));
+    expect(onRequestSubmit).not.toBeCalled();
+  });
+
   it('does not submit with invalid extension', async () => {
     const { change, blur } = fireEvent;
     const { click } = userEvent;
@@ -201,5 +224,26 @@ describe(componentName, () => {
     expect(screen.getByTestId(dataTestId)).toHaveDevtoolsAttribute(
       componentName
     );
+  });
+
+  it('adds additional input properties to the text input', async () => {
+    const { type } = userEvent;
+    const props = {
+      ...defaultProps,
+      inputProps: {
+        maxLength: 5,
+      },
+    };
+
+    render(<ExportModal {...props} />);
+    const textInput = screen.getByRole('textbox');
+
+    await act(async () => {
+      await type(
+        textInput,
+        'i-should-not-be-able-to-type-more-than-5-characters'
+      );
+    });
+    expect(textInput).toHaveAttribute('value', 'i-sho');
   });
 });

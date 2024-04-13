@@ -33,6 +33,7 @@ import { getDevtoolsProps } from '../../global/js/utils/devtools';
 import uuidv4 from '../../global/js/utils/uuidv4';
 import { pkg } from '../../settings';
 import { usePortalTarget } from '../../global/js/hooks/usePortalTarget';
+import { deprecateProp } from '../../global/js/utils/props-helper';
 
 const componentName = 'ExportModal';
 
@@ -49,7 +50,7 @@ type PreformattedExtensions = {
   extension?: string;
   description?: string;
 };
-interface RemoveModalProps extends React.ComponentProps<typeof ComposedModal> {
+interface ExportModalProps extends React.ComponentProps<typeof ComposedModal> {
   /**
    * Body content for the modal
    */
@@ -75,15 +76,19 @@ interface RemoveModalProps extends React.ComponentProps<typeof ComposedModal> {
    */
   hidePasswordLabel?: string;
   /**
-   * label for the text input
+   * **Deprecated** Set `labelText` in `inputProps` instead
    */
   inputLabel?: string;
+  /**
+   * Input props
+   */
+  inputProps?: React.ComponentProps<typeof TextInput>;
   /**
    * specify the type of text input
    */
   inputType: InputType;
   /**
-   * text for an invalid input
+   * **Deprecated** Set `invalidText` in `inputProps` instead
    */
   invalidInputText?: string;
   /**
@@ -163,6 +168,7 @@ export let ExportModal = forwardRef(
       filename,
       hidePasswordLabel,
       inputLabel,
+      inputProps,
       inputType = 'text',
       invalidInputText,
       loading,
@@ -183,7 +189,7 @@ export let ExportModal = forwardRef(
 
       // Collect any other property values passed in.
       ...rest
-    }: React.PropsWithChildren<RemoveModalProps>,
+    }: React.PropsWithChildren<ExportModalProps>,
     ref
   ) => {
     const [name, setName] = useState('');
@@ -205,14 +211,16 @@ export let ExportModal = forwardRef(
 
     const onNameChangeHandler = (evt) => {
       setName(evt.target.value);
+      inputProps?.onChange?.(evt);
     };
 
     const onExtensionChangeHandler = (value) => {
       setExtension(value);
     };
 
-    const onBlurHandler = () => {
+    const onBlurHandler = (evt) => {
       setDirtyInput(true);
+      inputProps?.onBlur?.(evt);
     };
 
     const onSubmitHandler = () => {
@@ -238,16 +246,21 @@ export let ExportModal = forwardRef(
 
     const blockClass = `${pkg.prefix}--export-modal`;
     const internalId = useRef(uuidv4());
-    const primaryButtonDisabled = loading || !name || hasInvalidExtension();
+    const primaryButtonDisabled =
+      inputProps?.invalid ||
+      loading ||
+      (inputType === 'text' ? !name?.trim() : !name) ||
+      hasInvalidExtension();
     const submitted = loading || error || successful;
 
     const commonInputProps = {
-      id: `text-input--${internalId.current}`,
+      ...(inputProps || {}),
+      id: inputProps?.id || `text-input--${internalId.current}`,
       value: name,
       onChange: onNameChangeHandler,
-      labelText: inputLabel,
-      invalid: hasInvalidExtension(),
-      invalidText: invalidInputText,
+      labelText: inputProps?.labelText || inputLabel,
+      invalid: inputProps?.invalid || hasInvalidExtension(),
+      invalidText: inputProps?.invalidText || invalidInputText,
       onBlur: onBlurHandler,
       ['data-modal-primary-focus']: true,
     };
@@ -355,6 +368,23 @@ export let ExportModal = forwardRef(
 // Return a placeholder if not released and not enabled by feature flag
 ExportModal = pkg.checkComponentEnabled(ExportModal, componentName);
 
+const deprecatedProps = {
+  /**
+   * **Deprecated** Set `labelText` in `inputProps` instead
+   */
+  inputLabel: deprecateProp(
+    PropTypes.string,
+    'Set `labelText` in `inputProps` instead'
+  ),
+  /**
+   * **Deprecated** Set `invalidText` in `inputProps` instead
+   */
+  invalidInputText: deprecateProp(
+    PropTypes.string,
+    'Set `invalidText` in `inputProps` instead'
+  ),
+};
+
 ExportModal.propTypes = {
   /**
    * Body content for the modal
@@ -382,18 +412,14 @@ ExportModal.propTypes = {
    */
   hidePasswordLabel: PropTypes.string,
   /**
-   * label for the text input
+   * Input props
    */
-  inputLabel: PropTypes.string,
+  inputProps: PropTypes.object,
   /**
    * specify the type of text input
    */
   /**@ts-ignore */
   inputType: PropTypes.oneOf(['text', 'password']),
-  /**
-   * text for an invalid input
-   */
-  invalidInputText: PropTypes.string,
   /**
    * specify if the modal is in a loading state
    */
@@ -461,6 +487,7 @@ ExportModal.propTypes = {
    */
   /**@ts-ignore */
   validExtensions: PropTypes.array,
+  ...deprecatedProps,
 };
 
 ExportModal.displayName = componentName;
